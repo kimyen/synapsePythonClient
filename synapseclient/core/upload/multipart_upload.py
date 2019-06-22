@@ -33,7 +33,7 @@ MIN_PART_SIZE = 8*MB
 MAX_RETRIES = 7
 
 
-def find_parts_to_upload(part_status):
+def _find_parts_to_upload(part_status):
     """
     Given a string of the form "1001110", where 1 and 0 indicate a status of completed or not, return the part numbers
     that aren't completed.
@@ -41,7 +41,7 @@ def find_parts_to_upload(part_status):
     return [i+1 for i, c in enumerate(part_status) if c == '0']
 
 
-def count_completed_parts(part_status):
+def _count_completed_parts(part_status):
     """
     Given a string of the form "1001110", where 1 and 0 indicate a status of completed or not, return the count of
     parts already completed.
@@ -49,7 +49,7 @@ def count_completed_parts(part_status):
     return len([c for c in part_status if c == '1'])
 
 
-def calculate_part_size(fileSize, partSize=None, min_part_size=MIN_PART_SIZE, max_parts=MAX_NUMBER_OF_PARTS):
+def _calculate_part_size(fileSize, partSize=None, min_part_size=MIN_PART_SIZE, max_parts=MAX_NUMBER_OF_PARTS):
     """
     Parts for multipart upload must be at least 5 MB and there must be at most 10,000 parts
     """
@@ -63,7 +63,7 @@ def calculate_part_size(fileSize, partSize=None, min_part_size=MIN_PART_SIZE, ma
     return partSize
 
 
-def get_file_chunk(filepath, n, chunksize=8*MB):
+def _get_file_chunk(filepath, n, chunksize=8 * MB):
     """
     Read the nth chunk from the file.
     """
@@ -72,7 +72,7 @@ def get_file_chunk(filepath, n, chunksize=8*MB):
         return f.read(chunksize)
 
 
-def get_data_chunk(data, n, chunksize=8*MB):
+def _get_data_chunk(data, n, chunksize=8 * MB):
     """
     Return the nth chunk of a buffer.
     """
@@ -197,7 +197,7 @@ def multipart_upload_file(syn, filepath, filename=None, contentType=None, storag
     syn.logger.debug("Initiating multi-part upload for file: [{path}] size={size} md5={md5}, contentType={contentType}"
                      .format(path=filepath, size=fileSize, md5=md5, contentType=contentType))
 
-    def get_chunk_function(n, partSize): return get_file_chunk(filepath, n, partSize)
+    def get_chunk_function(n, partSize): return _get_file_chunk(filepath, n, partSize)
 
     status = _multipart_upload(syn, filename, contentType,
                                get_chunk_function=get_chunk_function,
@@ -238,7 +238,7 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, storageL
     if not contentType:
         contentType = "text/plain; charset=utf-8"
 
-    def get_chunk_function(n, partSize): return get_data_chunk(data, n, partSize)
+    def get_chunk_function(n, partSize): return _get_data_chunk(data, n, partSize)
 
     status = _multipart_upload(syn, filename, contentType,
                                get_chunk_function=get_chunk_function,
@@ -321,14 +321,14 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
      http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
     .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
-    partSize = calculate_part_size(fileSize, partSize, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS)
+    partSize = _calculate_part_size(fileSize, partSize, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS)
     status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType,
                                      storageLocationId=storageLocationId, **kwargs)
 
     # only force restart once
     kwargs['forceRestart'] = False
 
-    completedParts = count_completed_parts(status.partsState)
+    completedParts = _count_completed_parts(status.partsState)
     # bytes that were previously uploaded before the current upload began. This variable is set only once
     previously_completed_bytes = min(completedParts * partSize, fileSize)
     syn.logger.debug("file partitioned into size: %s" % partSize)
@@ -355,14 +355,14 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                                                          bytes_already_uploaded=previously_completed_bytes)
 
             syn.logger.debug("fetching pre-signed urls and mapping to Pool")
-            url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
+            url_generator = _get_presigned_urls(syn, status.uploadId, _find_parts_to_upload(status.partsState))
             mp.map(chunk_upload, url_generator)
             syn.logger.debug("completed pooled upload")
 
             # Check if there are still parts
             status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType,
                                              storageLocationId=storageLocationId, **kwargs)
-            oldCompletedParts, completedParts = completedParts, count_completed_parts(status.partsState)
+            oldCompletedParts, completedParts = completedParts, _count_completed_parts(status.partsState)
             progress = (completedParts > oldCompletedParts)
             retries = retries+1 if not progress else retries
             syn.logger.debug("progress made in this loop? %s" % progress)

@@ -31,7 +31,7 @@ def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, fi
 
     # if doing a external file handle with no actual upload
     if not synapseStore:
-        return create_external_file_handle(syn, path, mimetype=mimetype, md5=md5, file_size=file_size)
+        return _create_external_file_handle(syn, path, mimetype=mimetype, md5=md5, file_size=file_size)
 
     # expand the path because past this point an upload is required and some upload functions require an absolute path
     expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
@@ -56,7 +56,7 @@ def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, fi
             syn.logger.info('\n%s\n%s\nUploading to: %s\n%s\n' % ('#' * 50, location.get('banner', ''),
                                                                   urllib_parse.urlparse(location['url']).netloc,
                                                                   '#' * 50))
-            return upload_external_file_handle_sftp(syn, expanded_upload_path, location['url'], mimetype=mimetype)
+            return _upload_external_file_handle_sftp(syn, expanded_upload_path, location['url'], mimetype=mimetype)
         else:
             raise NotImplementedError('Can only handle SFTP upload locations.')
     # client authenticated S3
@@ -64,15 +64,15 @@ def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, fi
         syn.logger.info('\n%s\n%s\nUploading to endpoint: [%s] bucket: [%s]\n%s\n'
                         % ('#' * 50, location.get('banner', ''), location.get('endpointUrl'), location.get('bucket'),
                            '#' * 50))
-        return upload_client_auth_s3(syn, expanded_upload_path, location['bucket'], location['endpointUrl'],
-                                     location['keyPrefixUUID'], location['storageLocationId'], mimetype=mimetype)
+        return _upload_client_auth_s3(syn, expanded_upload_path, location['bucket'], location['endpointUrl'],
+                                      location['keyPrefixUUID'], location['storageLocationId'], mimetype=mimetype)
     else:  # unknown storage location
         syn.logger.info('\n%s\n%s\nUNKNOWN STORAGE LOCATION. Defaulting upload to Synapse.\n%s\n'
                         % ('!' * 50, location.get('banner', ''), '!' * 50))
         return upload_synapse_s3(syn, expanded_upload_path, None, mimetype=mimetype)
 
 
-def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=None):
+def _create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=None):
     is_local_file = False  # defaults to false
     url = as_url(os.path.expandvars(os.path.expanduser(path)))
     if is_url(url):
@@ -96,7 +96,7 @@ def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=No
     return file_handle
 
 
-def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
+def _upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
     username, password = syn._getUserCredentials(sftp_url)
     uploaded_url = SFTPWrapper.upload_file(file_path, urllib_parse.unquote(sftp_url), username, password)
 
@@ -114,7 +114,7 @@ def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
     return syn._getFileHandle(file_handle_id)
 
 
-def upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id, mimetype=None):
+def _upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id, mimetype=None):
     profile = syn._get_client_authenticated_s3_profile(endpoint_url, bucket)
     file_key = key_prefix + '/' + os.path.basename(file_path)
 

@@ -7,7 +7,7 @@ from datetime import datetime as Datetime
 from nose.tools import assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_true, assert_false, \
     assert_equals, assert_is_not_none, assert_raises
 from mock import patch
-from synapseclient.core.upload.upload_functions import create_external_file_handle
+from synapseclient.core.upload.upload_functions import _create_external_file_handle
 
 from synapseclient import *
 from synapseclient.core.exceptions import *
@@ -499,7 +499,7 @@ def test_download_local_file_URL_path():
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
 
-    filehandle = create_external_file_handle(syn, path, mimetype=None, file_size=None)
+    filehandle = _create_external_file_handle(syn, path, mimetype=None, file_size=None)
 
     localFileEntity = syn.store(File(dataFileHandleId=filehandle['id'], parent=project))
     e = syn.get(localFileEntity.id)
